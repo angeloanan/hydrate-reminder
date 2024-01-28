@@ -86,9 +86,10 @@ async fn handle_oauth_flow(app: &AppHandle) {
         ("redirect_uri", "localhost:11132"),
         ("access_type", "online"),
     ]);
-    let url = format!("https://accounts.google.com/o/oauth2/v2/auth?{}", qs);
+    let url = Url::parse(format!("https://accounts.google.com/o/oauth2/v2/auth?{}", qs).as_str())
+        .unwrap();
 
-    let window = WindowBuilder::new(app, "oauth", tauri::WindowUrl::External((&url.into())))
+    let window = WindowBuilder::new(app, "oauth", tauri::WindowUrl::External(url))
         .hidden_title(true)
         .resizable(false)
         .decorations(false)
