@@ -17,6 +17,10 @@ function App() {
     await invoke('create_drink_notification')
   }
 
+  const oauth = async () => {
+    await invoke('handle_oauth_flow')
+  }
+
   return (
     <div class="container">
       <h1>Welcome to Tauri!</h1>
@@ -53,6 +57,7 @@ function App() {
       <p>{greetMsg()}</p>
 
       <button onClick={notif}>Notification!</button>
+      <button onClick={oauth}>Open Google OAuth</button>
     </div>
   );
 }
