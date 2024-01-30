@@ -1,8 +1,8 @@
 [package]
 name = "hydrate-reminder"
-version = "0.0.0"
+version = "0.0.1"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["Christopher Angelo <angelo@angeloanan.xyz>"]
 license = ""
 repository = ""
 edition = "2021"
@@ -20,12 +20,12 @@ tauri = { version = "1.5", features = [
 ] }
 querystring = "1"
 reqwest = { version = "0.11.23", features = ["json"] }
-lazy_static = "1.4"
 directories = "5"
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.35.1", features = ["full"] }
+rodio = "0.17.3"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
