@@ -2,10 +2,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod oauth;
+
 use std::sync::LazyLock;
 
 use directories::ProjectDirs;
-use reqwest::Url;
 use rodio::{Decoder, OutputStream, Sink};
 use tauri::{
     api::notification::Notification, AppHandle, CustomMenuItem, Manager, SystemTray,
@@ -103,41 +104,6 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     }
 }
 
-#[tauri::command]
-fn handle_oauth_flow(app: AppHandle) {
-    if let Some(window) = app.get_window("oauth") {
-        window.set_focus().expect("Unable to focus oauth window!")
-    } else {
-        let qs = querystring::stringify(vec![
-            (
-                "client_id",
-                "359154028055-42ip89g4r9m78pgoug1rpropgmbpgfa9.apps.googleusercontent.com",
-            ),
-            (
-                "scope",
-                "https://www.googleapis.com/auth/fitness.nutrition.write",
-            ),
-            ("prompt", "consent"),
-            ("response_type", "code"),
-            ("redirect_uri", "http://localhost:11132"),
-            ("access_type", "online"),
-        ]);
-        let url =
-            Url::parse(format!("https://accounts.google.com/o/oauth2/v2/auth?{}", qs).as_str())
-                .unwrap();
-
-        WindowBuilder::new(&app, "oauth", tauri::WindowUrl::External(url))
-            .hidden_title(true)
-            .resizable(false)
-            .closable(true)
-            .build()
-            .expect("Unable to create a new window!");
-
-        // Spawn OAuth server
-        tokio::task::spawn(oauth_server_cb(app.app_handle()));
-    }
-}
-
 #[tokio::main]
 async fn main() {
     let tray_menu = SystemTrayMenu::new()
@@ -155,7 +121,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             create_drink_notification,
             greet,
-            handle_oauth_flow
+            oauth::start_oauth_authentication
         ])
         .build(tauri::generate_context!())
         .expect("Error while running tauri application");
@@ -177,48 +143,4 @@ async fn notification_task(app: AppHandle) {
         tokio::time::sleep(time::Duration::from_secs(60 * 60)).await;
         create_drink_notification(app.clone())
     }
-}
-
-async fn oauth_server_cb(app: AppHandle) {
-    let http_server = tiny_http::Server::http("localhost:11132").unwrap();
-    println!("HTTP Server now listening on {}", http_server.server_addr());
-
-    for request in http_server.incoming_requests() {
-        let req_url = request.url();
-        println!("Received request: {}", req_url);
-
-        if !req_url.starts_with("/?") {
-            request
-                .respond(tiny_http::Response::from_string("404 Not Found").with_status_code(404))
-                .ok();
-
-            continue;
-        }
-
-        let qs = querystring::querify(&req_url[2..]);
-        let code = qs.iter().find(|(k, _v)| *k == "code");
-
-        if code.is_none() {
-            request
-                .respond(tiny_http::Response::from_string("400 Bad Request").with_status_code(400))
-                .ok();
-
-            continue;
-        }
-
-        println!("Received code: {}", code.unwrap().1);
-        app.get_window("oauth").and_then(|w| w.close().ok());
-
-        request
-            .respond(tiny_http::Response::from_string(
-                "Loading... You may close this window",
-            ))
-            .ok();
-
-        break;
-    }
-
-    println!("Shutting down HTTP Server");
-    http_server.unblock();
-    std::mem::drop(http_server);
 }
