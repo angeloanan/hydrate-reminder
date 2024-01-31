@@ -18,7 +18,7 @@ function App() {
   }
 
   const oauth = async () => {
-    await invoke('handle_oauth_flow')
+    await invoke('start_oauth_authentication')
   }
 
   return (
