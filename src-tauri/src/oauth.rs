@@ -4,7 +4,7 @@ use reqwest::Url;
 use tauri::{AppHandle, Manager, WindowBuilder};
 use tiny_http::{Response, Server};
 
-static GOOGLE_OAUTH_URL: LazyLock<Url> = LazyLock::new(|| {
+const GOOGLE_OAUTH_URL: LazyLock<Url> = LazyLock::new(|| {
     let qs = querystring::stringify(vec![
         (
             "client_id",
@@ -28,16 +28,14 @@ pub fn start_oauth_authentication(app: AppHandle) {
     if let Some(window) = app.get_window("oauth") {
         window.set_focus().expect("Unable to focus oauth window!")
     } else {
-        WindowBuilder::new(
-            &app,
-            "oauth",
-            tauri::WindowUrl::External(GOOGLE_OAUTH_URL.clone()),
-        )
-        .hidden_title(true)
-        .resizable(false)
-        .closable(true)
-        .build()
-        .expect("Unable to create a new window!");
+        WindowBuilder::new(&app, "oauth", tauri::WindowUrl::App("oauth".into()))
+            .hidden_title(true)
+            .resizable(false)
+            .closable(true)
+            .build()
+            .expect("Unable to create a new window!");
+
+        open::that_detached(GOOGLE_OAUTH_URL.as_str()).unwrap();
 
         // Spawn OAuth server
         tokio::task::spawn(redirect_server(app.app_handle()));
