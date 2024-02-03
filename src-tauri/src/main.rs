@@ -3,25 +3,23 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod oauth;
+mod sound;
+mod storage;
 
-use std::sync::LazyLock;
+use std::sync::RwLock;
 
-use directories::ProjectDirs;
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{OutputStream, Sink};
+use sound::{drink_audio, notification_audio};
+use storage::AppState;
 use tauri::{
     api::notification::Notification, AppHandle, CustomMenuItem, Manager, SystemTray,
     SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
 use tokio::time;
 
-static PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder";
-static PROJECT_DIR: LazyLock<ProjectDirs> =
-    LazyLock::new(|| ProjectDirs::from("fyi", "angelo", "hydrate-reminder").unwrap());
+use crate::storage::DrinkPoint;
 
-static NOTIFICATION_AUDIO: LazyLock<&'static [u8]> =
-    LazyLock::new(|| include_bytes!("../assets/notif.mp3"));
-static DRINK_AUDIO: LazyLock<&'static [u8]> =
-    LazyLock::new(|| include_bytes!("../assets/gulp.mp3"));
+const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder";
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -58,13 +56,10 @@ fn spawn_main_window(app: &AppHandle) {
 #[tauri::command]
 fn create_drink_notification(app: AppHandle) {
     tokio::spawn(async move {
-        let audio_buffer = std::io::Cursor::new(*NOTIFICATION_AUDIO);
-        let audio = Decoder::new(audio_buffer).unwrap();
-
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
-        sink.append(audio);
+        sink.append(notification_audio());
         Notification::new(&app.config().tauri.bundle.identifier)
             .title("Time to drink!")
             .body("It's been 1 hour since your last drink, time to drink again!")
@@ -75,15 +70,31 @@ fn create_drink_notification(app: AppHandle) {
     });
 }
 
+fn submit_drink(state: tauri::State<AppState>) {
+    {
+        // Add a new drink point to the history & drop the lock
+        let mut app_state = state.0.write().unwrap();
+        app_state.drink_history.push(DrinkPoint::default());
+    }
+
+    storage::save_app_state(&state.0.read().unwrap()).unwrap();
+
+    play_drink_sound();
+}
+
+#[tauri::command]
+fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
+    println!("Sending drink data to fend");
+
+    state.0.read().unwrap().drink_history.clone()
+}
+
 fn play_drink_sound() {
     tokio::spawn(async move {
-        let audio_buffer = std::io::Cursor::new(*DRINK_AUDIO);
-        let audio = Decoder::new(audio_buffer).unwrap();
-
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
-        sink.append(audio);
+        sink.append(drink_audio());
         sink.sleep_until_end()
     });
 }
@@ -91,7 +102,7 @@ fn play_drink_sound() {
 fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     match event {
         tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-            "drink" => play_drink_sound(),
+            "drink" => submit_drink(app.state()),
             "open-settings" => spawn_main_window(app),
 
             "quit" => app.exit(0),
@@ -114,12 +125,15 @@ async fn main() {
 
     let tray = SystemTray::new().with_menu(tray_menu);
 
+    let app_state = storage::get_saved_data();
+
     let mut app = tauri::Builder::default()
-        .plugin(tauri_plugin_store::Builder::default().build())
+        .manage(AppState(RwLock::new(app_state)))
         .system_tray(tray)
         .on_system_tray_event(handle_tray_event)
         .invoke_handler(tauri::generate_handler![
             create_drink_notification,
+            list_drinks,
             greet,
             oauth::start_oauth_authentication
         ])

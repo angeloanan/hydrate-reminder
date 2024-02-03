@@ -1,11 +1,14 @@
-import { createSignal } from "solid-js";
+import { createResource, createSignal } from "solid-js";
 import logo from "./assets/logo.svg";
 import { invoke } from "@tauri-apps/api/tauri";
 import "./App.css";
+import { DrinkHistory } from "./types/DrinkHistory.ts";
 
 function App() {
   const [greetMsg, setGreetMsg] = createSignal("");
   const [name, setName] = createSignal("");
+
+  const [drinkHistoryData] = createResource<DrinkHistory>(() => invoke('list_drinks'))
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -55,6 +58,10 @@ function App() {
       </form>
 
       <p>{greetMsg()}</p>
+
+      <pre style={{ "width": "100vw", "text-align": "left" }}>
+        {JSON.stringify(drinkHistoryData(), null, 2)}
+      </pre>
 
       <button onClick={notif}>Notification!</button>
       <button onClick={oauth}>Open Google OAuth</button>
