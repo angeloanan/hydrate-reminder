@@ -7,14 +7,15 @@ use std::{
 use chrono::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use tauri::api::path::data_dir;
 
 static PROJECT_DIR: LazyLock<ProjectDirs> =
     LazyLock::new(|| ProjectDirs::from("fyi", "angelo", "hydrate-reminder").unwrap());
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct DrinkPoint {
-    pub time: i64,
+    /// Timestamp of when the drink was recorded
+    pub timestamp: i64,
+
     /// Amount of water drank in milliliters
     pub amount: f64,
 }
@@ -22,7 +23,7 @@ pub struct DrinkPoint {
 impl Default for DrinkPoint {
     fn default() -> Self {
         Self {
-            time: Utc::now().timestamp(),
+            timestamp: Utc::now().timestamp(),
             amount: 500.0,
         }
     }
@@ -31,7 +32,7 @@ impl Default for DrinkPoint {
 impl DrinkPoint {
     pub fn new(amount: f64) -> Self {
         Self {
-            time: Utc::now().timestamp(),
+            timestamp: Utc::now().timestamp(),
             amount,
         }
     }
