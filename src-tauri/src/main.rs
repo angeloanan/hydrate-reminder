@@ -24,7 +24,15 @@ use tauri::{
 };
 use tokio::time;
 
+#[cfg(debug_assertions)]
+const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder-dev";
+#[cfg(not(debug_assertions))]
 const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder";
+
+// Required by Cap'n Proto
+pub mod app_capnp {
+    include!(concat!(env!("OUT_DIR"), "/schema/app_capnp.rs"));
+}
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
