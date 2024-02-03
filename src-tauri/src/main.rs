@@ -9,6 +9,7 @@ mod structs;
 
 use {
     chrono::{prelude::*, Duration},
+    mac_notification_sys::get_bundle_identifier_or_default,
     std::ops::Add,
     structs::drink_point::DrinkPoint,
 };
@@ -19,8 +20,7 @@ use rodio::{OutputStream, Sink};
 use sound::{drink_audio, notification_audio};
 use storage::AppState;
 use tauri::{
-    api::notification::Notification, AppHandle, CustomMenuItem, Manager, SystemTray,
-    SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
 use tokio::time;
 
@@ -67,17 +67,22 @@ fn spawn_main_window(app: &AppHandle) {
 }
 
 #[tauri::command]
-fn create_drink_notification(app: AppHandle) {
+fn create_drink_notification(_app: AppHandle) {
     tokio::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
         sink.append(notification_audio());
-        Notification::new(&app.config().tauri.bundle.identifier)
-            .title("Time to drink!")
-            .body("It's been 1 hour since your last drink, time to drink again!")
-            .show()
-            .expect("Unable to create drink notification!");
+
+        #[cfg(target_os = "macos")]
+        {
+            mac_notification_sys::Notification::new()
+                .app_icon("")
+                .title("Time to drink!")
+                .message("It's been 1 hour since your last drink, time to drink again!")
+                .send()
+                .unwrap();
+        }
 
         sink.sleep_until_end();
     });
@@ -130,6 +135,15 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
 
 #[tokio::main]
 async fn main() {
+    // Setup notifications on macos
+    #[cfg(target_os = "macos")]
+    {
+        mac_notification_sys::set_application(
+            get_bundle_identifier_or_default("hydrate-reminder").as_str(),
+        )
+        .unwrap();
+    }
+
     let tray_menu = SystemTrayMenu::new()
         .add_item(CustomMenuItem::new("drink", "🥛 Drink"))
         .add_item(CustomMenuItem::new("open-settings", "Open Settings"))
