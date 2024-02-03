@@ -5,10 +5,12 @@
 mod oauth;
 mod sound;
 mod storage;
+mod structs;
 
 use {
     chrono::{prelude::*, Duration},
     std::ops::Add,
+    structs::drink_point::DrinkPoint,
 };
 
 use {std::sync::RwLock, tauri::State};
@@ -21,8 +23,6 @@ use tauri::{
     SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
 use tokio::time;
-
-use crate::storage::DrinkPoint;
 
 const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder";
 
@@ -76,10 +76,10 @@ fn create_drink_notification(app: AppHandle) {
 }
 
 fn submit_drink(state: tauri::State<AppState>) {
+    // Add a new drink point to the history & drop the lock
     {
-        // Add a new drink point to the history & drop the lock
         let mut app_state = state.0.write().unwrap();
-        app_state.drink_history.push(DrinkPoint::default());
+        app_state.drink_history.push(DrinkPoint::new(200.0));
     }
 
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
