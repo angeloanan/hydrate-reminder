@@ -6,7 +6,12 @@ mod oauth;
 mod sound;
 mod storage;
 
-use std::sync::RwLock;
+use {
+    chrono::{prelude::*, Duration},
+    std::ops::Add,
+};
+
+use {std::sync::RwLock, tauri::State};
 
 use rodio::{OutputStream, Sink};
 use sound::{drink_audio, notification_audio};
@@ -153,8 +158,26 @@ async fn main() {
 }
 
 async fn notification_task(app: AppHandle) {
+    let state: State<AppState> = app.state();
+
+    // Recheck every 60 seconds
     loop {
-        tokio::time::sleep(time::Duration::from_secs(60 * 60)).await;
-        create_drink_notification(app.clone())
+        tokio::time::sleep(time::Duration::from_secs(60)).await;
+
+        let app_state = state.0.read().unwrap();
+
+        if let Some(point) = app_state.drink_history.last() {
+            let last_drink = DateTime::from_timestamp(point.timestamp, 0).expect(
+                "Invalid timestamp in drink history. Did you modify the data file manually?",
+            );
+            let now = chrono::Utc::now();
+            let diff = now - last_drink;
+
+            if diff > chrono::Duration::hours(1)
+                && diff < chrono::Duration::hours(1).add(Duration::minutes(1))
+            {
+                create_drink_notification(app.clone());
+            }
+        }
     }
 }
