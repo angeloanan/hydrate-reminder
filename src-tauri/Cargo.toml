@@ -22,6 +22,7 @@ tauri = { version = "1.5", features = [
   "system-tray",
   "shell-open",
   "notification",
+  "icon-png",
 ] }
 querystring = "1"
 reqwest = { version = "0.11.23", features = ["json"] }

@@ -128,7 +128,16 @@ async fn main() {
         .add_native_item(tauri::SystemTrayMenuItem::Separator)
         .add_item(CustomMenuItem::new("quit", "Quit"));
 
-    let tray = SystemTray::new().with_menu(tray_menu);
+    let mut tray = SystemTray::new()
+        .with_menu(tray_menu)
+        .with_icon(tauri::Icon::Raw(
+            include_bytes!("../icons/tray.png").to_vec(),
+        ));
+
+    #[cfg(target_os = "macos")]
+    {
+        tray = tray.with_icon_as_template(true);
+    }
 
     let app_state = storage::get_saved_data();
 
