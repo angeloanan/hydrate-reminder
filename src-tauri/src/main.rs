@@ -17,7 +17,7 @@ mod structs;
 use {
     chrono::{prelude::*, Duration},
     mac_notification_sys::get_bundle_identifier_or_default,
-    std::ops::Add,
+    std::{collections::HashMap, ops::Add},
     structs::drink_point::DrinkPoint,
     tauri::Position,
 };
@@ -40,12 +40,6 @@ const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder";
 // Required by Cap'n Proto
 pub mod app_capnp {
     include!(concat!(env!("OUT_DIR"), "/schema/app_capnp.rs"));
-}
-
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {name}! You've been greeted from Rust!")
 }
 
 fn spawn_main_window(app: &AppHandle) {
@@ -134,6 +128,30 @@ fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
     state.0.read().unwrap().drink_history.clone()
 }
 
+#[tauri::command]
+fn list_drinks_group_day(state: tauri::State<AppState>) -> HashMap<String, f64> {
+    println!("[list_drinks_group_day] Sending drink data to FEnd");
+
+    let drink_history = state.0.read().unwrap().drink_history.clone();
+
+    let mut grouped_drinks: HashMap<String, f64> = HashMap::new();
+
+    // Iterate through drinks, group drinks by day - DrinkPoint timestamp is set to 00:00:00
+    for point in &drink_history {
+        let local_datetime = DateTime::from_timestamp(point.timestamp, 0)
+            .unwrap()
+            .naive_local()
+            .date();
+
+        let entry = grouped_drinks
+            .entry(local_datetime.to_string())
+            .or_insert(0.0);
+        *entry += point.amount;
+    }
+
+    grouped_drinks
+}
+
 fn play_drink_sound() {
     tokio::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -198,7 +216,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             create_drink_notification,
             list_drinks,
-            greet,
+            list_drinks_group_day,
             oauth::start_oauth_authentication
         ])
         .build(tauri::generate_context!())
