@@ -1,12 +1,16 @@
 [package]
 name = "hydrate-reminder"
 version = "0.0.1"
-description = "A Tauri App"
+description = "a smol tray app to remind you to drink"
 authors = ["Christopher Angelo <angelo@angeloanan.xyz>"]
-license = ""
-repository = ""
 edition = "2021"
 build = "build.rs"
+
+readme = "README.md"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/angeloanan/hydrate-reminder"
+categories = ["accessibility", "visualization"]
+keywords = ["hydrate", "reminder", "tauri", "app", "tray"]
 
 [profile.release]
 # panic = "abort"   # Strip expensive panic clean-up logic
