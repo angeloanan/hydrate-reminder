@@ -73,6 +73,18 @@ fn spawn_main_window(app: &AppHandle) {
             }))
             .expect("Unable to set window position!");
 
+        let app_handle = app.clone();
+        window.on_window_event(move |e| {
+            if matches!(e, tauri::WindowEvent::Focused(false)) {
+                println!("Closing window");
+                app_handle
+                    .get_window("main")
+                    .unwrap()
+                    .close()
+                    .expect("Failed to close window!");
+            }
+        });
+    }
 
     //     println!("Window event: {:?}", e);
     // });
