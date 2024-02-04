@@ -1,4 +1,7 @@
-use std::sync::LazyLock;
+use {
+    std::sync::LazyLock,
+    tauri::api::shell::{open, Program},
+};
 
 use reqwest::Url;
 use tauri::{AppHandle, Manager, WindowBuilder};
@@ -35,7 +38,7 @@ pub fn start_oauth_authentication(app: AppHandle) {
             .build()
             .expect("Unable to create a new window!");
 
-        open::that_detached(GOOGLE_OAUTH_URL.as_ref()).unwrap();
+        open(&app.shell_scope(), GOOGLE_OAUTH_URL.as_ref(), None).unwrap();
 
         // Spawn OAuth server
         tokio::task::spawn(async move { redirect_server(&app.app_handle()) });
