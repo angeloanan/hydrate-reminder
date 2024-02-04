@@ -66,16 +66,21 @@ fn serialize_app_state(state: &InnerAppState) -> Vec<u8> {
     app_state_builder.set_has_onboarded(state.has_onboarded);
 
     let mut drink_history_builder =
-        app_state_builder.init_drink_history(state.drink_history.len() as u32);
+        app_state_builder.init_drink_history(
+            u32::try_from(state.drink_history.len())
+                .expect("Unable to convert drink history length to u32. Did you change this to string or do you have > 4 billion drink points?")
+        );
 
     for (i, drink_point) in state.drink_history.iter().enumerate() {
-        let mut drink_point_builder = drink_history_builder.reborrow().get(i as u32);
+        let mut drink_point_builder = drink_history_builder
+            .reborrow()
+            .get(u32::try_from(i).unwrap());
         drink_point_builder.set_timestamp(drink_point.timestamp);
         drink_point_builder.set_amount(drink_point.amount);
     }
 
     let mut serialized_data = Vec::new();
-    capnp::serialize_packed::write_message(&mut serialized_data, &message.borrow_inner())
+    capnp::serialize_packed::write_message(&mut serialized_data, message.borrow_inner())
         .expect("Unable to serialize app state!");
 
     serialized_data
@@ -83,13 +88,12 @@ fn serialize_app_state(state: &InnerAppState) -> Vec<u8> {
 
 pub fn get_saved_data() -> InnerAppState {
     let data_path = PROJECT_DIR.data_dir().join("history.bin");
-    println!("Data path: {:?}", data_path);
+    println!("Data path: {data_path:?}");
 
-    if PROJECT_DIR
+    if !PROJECT_DIR
         .data_dir()
         .try_exists()
         .expect("Unable to check if data directory exists. Please elevate the app's permission!")
-        == false
     {
         std::fs::create_dir_all(PROJECT_DIR.data_dir()).unwrap();
     };

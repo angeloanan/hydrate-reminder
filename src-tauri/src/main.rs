@@ -1,3 +1,10 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::cargo)]
+#![warn(clippy::perf)]
+#![warn(clippy::complexity)]
+#![warn(clippy::style)]
 #![feature(lazy_cell)]
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -25,9 +32,9 @@ use tauri::{
 use tokio::time;
 
 #[cfg(debug_assertions)]
-const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder-dev";
+const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder-dev";
 #[cfg(not(debug_assertions))]
-const PROJECT_IDENTIFIER: &'static str = "fyi.angelo.hydrate-reminder";
+const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder";
 
 // Required by Cap'n Proto
 pub mod app_capnp {
@@ -37,7 +44,7 @@ pub mod app_capnp {
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    format!("Hello, {name}! You've been greeted from Rust!")
 }
 
 fn spawn_main_window(app: &AppHandle) {
@@ -67,7 +74,7 @@ fn spawn_main_window(app: &AppHandle) {
 }
 
 #[tauri::command]
-fn create_drink_notification(_app: AppHandle) {
+fn create_drink_notification() {
     tokio::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
@@ -113,23 +120,22 @@ fn play_drink_sound() {
         let sink = Sink::try_new(&stream_handle).unwrap();
 
         sink.append(drink_audio());
-        sink.sleep_until_end()
+        sink.sleep_until_end();
     });
 }
 
 fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
-    match event {
-        tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+    if let tauri::SystemTrayEvent::MenuItemClick { id, .. } = event {
+        match id.as_str() {
             "drink" => submit_drink(app.state()),
             "open-settings" => spawn_main_window(app),
 
             "quit" => app.exit(0),
 
             _ => {
-                println!("Unknown menu item clicked: {}", id);
+                println!("Unknown menu item clicked: {id}");
             }
-        },
-        _ => {}
+        }
     }
 }
 
@@ -180,11 +186,10 @@ async fn main() {
 
     tokio::task::spawn(notification_task(app.app_handle()));
 
-    app.run(|_, e| match e {
-        tauri::RunEvent::ExitRequested { api, .. } => {
+    app.run(|_, e| {
+        if let tauri::RunEvent::ExitRequested { api, .. } = e {
             api.prevent_exit();
         }
-        _ => {}
     });
 }
 
@@ -207,7 +212,7 @@ async fn notification_task(app: AppHandle) {
             if diff > chrono::Duration::hours(1)
                 && diff < chrono::Duration::hours(1).add(Duration::minutes(1))
             {
-                create_drink_notification(app.clone());
+                create_drink_notification();
             }
         }
     }

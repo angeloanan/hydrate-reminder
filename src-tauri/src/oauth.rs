@@ -20,13 +20,13 @@ const GOOGLE_OAUTH_URL: LazyLock<Url> = LazyLock::new(|| {
         ("access_type", "online"),
     ]);
 
-    Url::parse(format!("https://accounts.google.com/o/oauth2/v2/auth?{}", qs).as_str()).unwrap()
+    Url::parse(format!("https://accounts.google.com/o/oauth2/v2/auth?{qs}").as_str()).unwrap()
 });
 
 #[tauri::command]
 pub fn start_oauth_authentication(app: AppHandle) {
     if let Some(window) = app.get_window("oauth") {
-        window.set_focus().expect("Unable to focus oauth window!")
+        window.set_focus().expect("Unable to focus oauth window!");
     } else {
         WindowBuilder::new(&app, "oauth", tauri::WindowUrl::App("oauth".into()))
             .hidden_title(true)
@@ -35,20 +35,20 @@ pub fn start_oauth_authentication(app: AppHandle) {
             .build()
             .expect("Unable to create a new window!");
 
-        open::that_detached(GOOGLE_OAUTH_URL.as_str()).unwrap();
+        open::that_detached(GOOGLE_OAUTH_URL.as_ref()).unwrap();
 
         // Spawn OAuth server
-        tokio::task::spawn(redirect_server(app.app_handle()));
+        tokio::task::spawn(async move { redirect_server(&app.app_handle()) });
     }
 }
 
-pub async fn redirect_server(app: AppHandle) {
+pub fn redirect_server(app: &AppHandle) {
     let http_server = Server::http("localhost:11132").unwrap();
     println!("HTTP Server now listening on {}", http_server.server_addr());
 
     for request in http_server.incoming_requests() {
         let req_url = request.url();
-        println!("Received request: {}", req_url);
+        println!("Received request: {req_url}");
 
         if !req_url.starts_with("/?") {
             request
