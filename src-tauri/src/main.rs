@@ -51,10 +51,11 @@ fn spawn_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_window("main") {
         main_window
             .set_focus()
-            .expect("Unable to focus main window!")
+            .expect("Unable to focus main window!");
     } else {
-        WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
+        let window = WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
             .hidden_title(true)
+            .inner_size(300.0, 500.0)
             .resizable(false)
             .closable(true)
             .build()
