@@ -19,6 +19,7 @@ use {
     mac_notification_sys::get_bundle_identifier_or_default,
     std::ops::Add,
     structs::drink_point::DrinkPoint,
+    tauri::Position,
 };
 
 use {std::sync::RwLock, tauri::State};
@@ -60,15 +61,18 @@ fn spawn_main_window(app: &AppHandle) {
             .closable(true)
             .build()
             .expect("Unable to create a new window!");
-    }
 
-    // window.on_window_event(|e| {
-    //     match e {
-    //         tauri::WindowEvent::Focused(false) => {
-    //             window.close().expect("Failed to close window!");
-    //         }
-    //         _ => {}
-    //     }
+        let monitor = window.current_monitor().unwrap().unwrap();
+        let w = monitor.size().width - 300;
+        window
+            .set_position(Position::Physical({
+                tauri::PhysicalPosition {
+                    x: i32::try_from(w).unwrap(),
+                    y: 0,
+                }
+            }))
+            .expect("Unable to set window position!");
+
 
     //     println!("Window event: {:?}", e);
     // });
