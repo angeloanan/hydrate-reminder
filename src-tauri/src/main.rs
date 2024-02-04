@@ -50,50 +50,49 @@ fn greet(name: &str) -> String {
 
 fn spawn_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_window("main") {
-        main_window
+        return main_window
             .set_focus()
             .expect("Unable to focus main window!");
-    } else {
-        let window = WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
-            .hidden_title(true)
-            .inner_size(300.0, 500.0)
-            .resizable(false)
-            .closable(true)
-            .build()
-            .expect("Unable to create a new window!");
-
-        let monitor = window.current_monitor().unwrap().unwrap();
-        let w = monitor.size().width - 300;
-        window
-            .set_position(Position::Physical({
-                tauri::PhysicalPosition {
-                    x: i32::try_from(w).unwrap(),
-                    y: 0,
-                }
-            }))
-            .expect("Unable to set window position!");
-
-        // Close the window when it loses focus ON PROD
-        #[cfg(not(debug_assertions))]
-        {
-            let app_handle = app.clone();
-            window.on_window_event(move |e| {
-                if matches!(e, tauri::WindowEvent::Focused(false)) {
-                    println!("Closing window");
-                    app_handle
-                        .get_window("main")
-                        .unwrap()
-                        .close()
-                        .expect("Failed to close window!");
-                }
-            });
-        }
     }
 
-    //     println!("Window event: {:?}", e);
-    // });
+    let window = WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
+        .hidden_title(true)
+        .inner_size(300.0, 500.0)
+        .resizable(false)
+        .closable(true)
+        .always_on_top(true)
+        .build()
+        .expect("Unable to create a new window!");
+
+    let monitor = window.current_monitor().unwrap().unwrap();
+    let w = monitor.size().width - 300;
+    window
+        .set_position(Position::Physical({
+            tauri::PhysicalPosition {
+                x: i32::try_from(w).unwrap(),
+                y: 0,
+            }
+        }))
+        .expect("Unable to set window position!");
+
+    // Close the window when it loses focus ON PROD
+    #[cfg(not(debug_assertions))]
+    {
+        let app_handle = app.clone();
+        window.on_window_event(move |e| {
+            if matches!(e, tauri::WindowEvent::Focused(false)) {
+                println!("Closing window");
+                app_handle
+                    .get_window("main")
+                    .unwrap()
+                    .close()
+                    .expect("Failed to close window!");
+            }
+        });
+    }
 }
 
+// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn create_drink_notification() {
     tokio::spawn(async move {
@@ -130,7 +129,7 @@ fn submit_drink(state: tauri::State<AppState>) {
 
 #[tauri::command]
 fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
-    println!("Sending drink data to fend");
+    println!("[list_drinks] Sending drink data to FEnd");
 
     state.0.read().unwrap().drink_history.clone()
 }
@@ -146,8 +145,9 @@ fn play_drink_sound() {
 }
 
 fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
-    if let tauri::SystemTrayEvent::MenuItemClick { id, .. } = event {
-        match id.as_str() {
+    match event {
+        tauri::SystemTrayEvent::LeftClick { position, .. } => {}
+        tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
             "drink" => submit_drink(app.state()),
             "open-settings" => spawn_main_window(app),
 
@@ -156,7 +156,8 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
             _ => {
                 println!("Unknown menu item clicked: {id}");
             }
-        }
+        },
+        _ => (),
     }
 }
 
