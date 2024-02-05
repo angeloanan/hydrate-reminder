@@ -16,7 +16,6 @@ mod structs;
 
 use {
     chrono::{prelude::*, Duration},
-    mac_notification_sys::get_bundle_identifier_or_default,
     std::{collections::HashMap, ops::Add},
     structs::drink_point::DrinkPoint,
     tauri::Position,
@@ -50,7 +49,6 @@ fn spawn_main_window(app: &AppHandle) {
     }
 
     let window = WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
-        .hidden_title(true)
         .inner_size(300.0, 500.0)
         .resizable(false)
         .closable(true)
@@ -184,6 +182,8 @@ async fn main() {
     // Setup notifications on macos
     #[cfg(target_os = "macos")]
     {
+        use mac_notification_sys::get_bundle_identifier_or_default;
+
         mac_notification_sys::set_application(
             get_bundle_identifier_or_default("hydrate-reminder").as_str(),
         )
@@ -222,7 +222,10 @@ async fn main() {
         .build(tauri::generate_context!())
         .expect("Error while running tauri application");
 
-    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    #[cfg(target_os = "macos")]
+    {
+        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    }
 
     tokio::task::spawn(notification_task(app.app_handle()));
 

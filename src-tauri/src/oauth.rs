@@ -32,7 +32,6 @@ pub fn start_oauth_authentication(app: AppHandle) {
         window.set_focus().expect("Unable to focus oauth window!");
     } else {
         WindowBuilder::new(&app, "oauth", tauri::WindowUrl::App("oauth".into()))
-            .hidden_title(true)
             .resizable(false)
             .closable(true)
             .build()
