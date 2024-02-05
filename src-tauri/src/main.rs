@@ -59,7 +59,8 @@ fn spawn_main_window(app: &AppHandle) {
         .expect("Unable to create a new window!");
 
     let monitor = window.current_monitor().unwrap().unwrap();
-    let w = monitor.size().width - 300;
+    let w = monitor.size().width - (300.0 * monitor.scale_factor()) as u32;
+
     window
         .set_position(Position::Physical({
             tauri::PhysicalPosition {
