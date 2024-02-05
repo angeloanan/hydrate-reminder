@@ -86,7 +86,7 @@ fn spawn_main_window(app: &AppHandle) {
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
-fn create_drink_notification() {
+fn create_drink_notification(app: AppHandle) {
     tokio::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
@@ -102,6 +102,19 @@ fn create_drink_notification() {
                 .send()
                 .unwrap();
         }
+
+        #[cfg(target_os = "windows")]
+        {
+            winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
+                .title("Time to drink!")
+                .text1("It's been 1 hour since your last drink, time to drink again!")
+                .duration(winrt_notification::Duration::Short)
+                .sound(None)
+                .show()
+                .unwrap();
+        }
+
+        // TODO: Add Linux support
 
         sink.sleep_until_end();
     });
@@ -255,7 +268,7 @@ async fn notification_task(app: AppHandle) {
             if diff > chrono::Duration::hours(1)
                 && diff < chrono::Duration::hours(1).add(Duration::minutes(1))
             {
-                create_drink_notification();
+                create_drink_notification(app.clone());
             }
         }
     }

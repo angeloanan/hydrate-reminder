@@ -44,6 +44,9 @@ capnp = "0.19.1"
 [target.'cfg(target_os = "macos")'.dependencies]
 mac-notification-sys = "0.6.1"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+winrt-notification = "0.5.1"
+
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
 # DO NOT REMOVE!!
