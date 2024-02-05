@@ -33,7 +33,9 @@ jobs:
           run_install: false
 
       - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
 
       - name: Rust Dependency Cache
         uses: Swatinem/rust-cache@v2
