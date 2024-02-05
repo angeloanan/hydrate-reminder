@@ -32,13 +32,15 @@ jobs:
           version: 8
           run_install: false
 
-      - name: install Rust stable
+      - name: install Rust Nightly
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
 
       - name: Rust Dependency Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-20.04'
