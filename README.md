@@ -19,7 +19,17 @@ Save data are stored in a [packed serialized binary format](./src-tauri/schema/a
 * [PLANNED] Apple Health integration
 * [PLANNED] Less energy consumption
 
+## Development - Prerequisites
 
+You would need to follow the [Tauri](https://tauri.studio/) [installation guide](https://tauri.app/v1/guides/getting-started/prerequisites) to setup your development environment.
+
+> *TL;DR: Setup MSVC Build Tools / XCode / build-essentials + webkit2gtk & Rust Nightly*
+
+The app uses [Cap'n Proto](https://capnproto.org/install.html) to save / parse app data to binary. You should set it up for your platform and make it available on your `PATH`.  
+You can simply run the following to install Cap'n Proto on your platform:
+* Windows: `winget install capnproto.capnproto` or `choco install capnproto` 
+* MacOS: `brew install capnp`
+* Linux: `sudo apt install capnp` / `payman -S capnproto` / ... check your package manager
 
 ## Development - Recommended IDE Setup
 
