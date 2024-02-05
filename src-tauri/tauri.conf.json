@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "hydrate-reminder",
+    "productName": "Hydrate Reminder",
     "version": "0.0.0"
   },
   "tauri": {
@@ -21,6 +21,9 @@
       "active": true,
       "targets": "all",
       "identifier": "fyi.angelo.hydrate-reminder",
+      "copyright": "GNU General Public License v3.0",
+      "category": "HealthcareAndFitness",
+      "shortDescription": "a smol tray app to remind you to drink",
       "icon": [
         "icons/desktop-icon.icns",
         "icons/desktop-icon.ico",
