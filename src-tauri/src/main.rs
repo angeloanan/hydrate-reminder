@@ -49,6 +49,7 @@ fn spawn_main_window(app: &AppHandle) {
     }
 
     let window = WindowBuilder::new(app, "main", tauri::WindowUrl::App("index.html".into()))
+        .title("Hydrate Reminder")
         .inner_size(300.0, 500.0)
         .resizable(false)
         .closable(true)
