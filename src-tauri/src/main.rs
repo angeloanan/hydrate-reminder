@@ -9,6 +9,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod http;
 mod oauth;
 mod sound;
 mod storage;
@@ -224,6 +225,8 @@ async fn main() {
     }
 
     let app_state = storage::get_saved_data();
+
+    println!("Loaded app state: {app_state:#?}");
 
     let mut app = tauri::Builder::default()
         .manage(AppState(RwLock::new(app_state)))
