@@ -1,21 +1,32 @@
 import 'cal-heatmap/cal-heatmap.css';
 import CalHeatmap from 'cal-heatmap';
 import Tooltip from 'cal-heatmap/plugins/Tooltip';
-import { createEffect, createResource } from 'solid-js';
+import { createEffect, createResource, createSignal, onCleanup, onMount } from 'solid-js';
 import { invoke } from '@tauri-apps/api';
 import { WaterVolumeFormatter } from '../util/formatter';
 import { MONTHS } from '../util/datetime';
+import { UnlistenFn, listen } from '@tauri-apps/api/event';
 
 const cal: CalHeatmap = new CalHeatmap();
 
 type ListDrinksGroupDayReturnType = Record<string, number>
 
 export const Heatmap = () => {
-  const [data] = createResource<ListDrinksGroupDayReturnType>(() => invoke("list_drinks_group_day"))
+  const [unlistenDrink, setUnlistenDrink] = createSignal<UnlistenFn>()
+  const [data, { refetch }] = createResource<ListDrinksGroupDayReturnType>(() => invoke("list_drinks_group_day"))
+
+  onMount(async () => {
+    const unlisten = await listen('drink', refetch)
+    setUnlistenDrink(() => unlisten)
+  })
+
+  onCleanup(() => {
+    unlistenDrink()?.()
+  })
 
   createEffect(() => {
     const ret = data()
-    if (ret == null) return
+    if (data.loading) return
 
     const processed_data = Object.entries(ret)
     console.log(processed_data)

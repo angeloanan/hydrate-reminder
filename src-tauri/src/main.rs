@@ -124,7 +124,9 @@ fn create_drink_notification(app: AppHandle) {
     });
 }
 
-fn submit_drink(state: tauri::State<AppState>) {
+fn submit_drink(app: &AppHandle) {
+    let state = app.state::<AppState>();
+
     // Add a new drink point to the history & drop the lock
     {
         let mut app_state = state.0.write().unwrap();
@@ -132,6 +134,8 @@ fn submit_drink(state: tauri::State<AppState>) {
     }
 
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
+
+    app.emit_all("drink", {});
 
     play_drink_sound();
 }
@@ -191,7 +195,7 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     match event {
         tauri::SystemTrayEvent::LeftClick { position, .. } => {}
         tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-            "drink" => submit_drink(app.state()),
+            "drink" => submit_drink(app),
             "open-settings" => spawn_main_window(app),
 
             "quit" => app.exit(0),

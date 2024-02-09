@@ -2,15 +2,17 @@ import { render } from "solid-js/web";
 
 import "./styles.css";
 
-import { Show, createResource } from "solid-js";
+import { Show, createResource, createSignal, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/tauri";
-import { DrinkHistory, DrinkPoint } from "./types/DrinkHistory.ts";
+import { DrinkPoint } from "./types/DrinkHistory.ts";
 import { Heatmap } from "./components/heatmap.tsx";
 import { formatDistance } from 'date-fns'
+import { UnlistenFn, listen } from "@tauri-apps/api/event";
 
 const App = () => {
-  const [drinkHistoryData] = createResource<DrinkHistory>(() => invoke('list_drinks'))
-  const [latestDrink, { refetch }] = createResource<DrinkPoint | undefined>(() => invoke('get_latest_drink'))
+  const [unlistenDrink, setUnlistenDrink] = createSignal<UnlistenFn>();
+
+  const [latestDrink, { refetch: refetchLatestDrink }] = createResource<DrinkPoint | undefined>(() => invoke('get_latest_drink'))
 
   const notif = async () => {
     console.log("notif")
@@ -21,6 +23,15 @@ const App = () => {
     await invoke('start_oauth_authentication')
   }
 
+  onMount(async () => {
+    const unlisten = await listen('drink', refetchLatestDrink)
+    setUnlistenDrink(() => unlisten)
+  })
+
+  onCleanup(() => {
+    unlistenDrink()?.()
+  })
+
   return (
     <main class="m-4">
       <h1 class="font-light text-3xl text-blue-100">🥛 Hydrate</h1>
@@ -28,8 +39,8 @@ const App = () => {
       <Show when={!latestDrink.loading}>
         <div class="bg-neutral-900 my-2 text-xs p-2">
           <Show when={latestDrink() != null} fallback={<p>You haven'n drinked. Maybe drink now?</p>}>
-            <p>Your last hydration was {formatDistance(latestDrink()!.timestamp * 1000, new Date(), { addSuffix: true, includeSeconds: true })}.</p>
-            <p>You will be notified {formatDistance(Date.now(), (latestDrink()!.timestamp + 3600) * 1000, { addSuffix: true, includeSeconds: true })}. </p>
+            <p>Your last drink was {formatDistance(latestDrink()!.timestamp * 1000, Date.now(), { addSuffix: true })}.</p>
+            <p>You will be notified {formatDistance((latestDrink()!.timestamp + 3600) * 1000, Date.now(), { addSuffix: true, includeSeconds: false })}. </p>
           </Show>
         </div>
       </Show>
@@ -43,10 +54,9 @@ const App = () => {
         <button onClick={oauth} class="bg-blue-800 px-2 py-1 rounded">Google OAuth</button>
       </div>
     
-      <pre class="max-h-48 overflow-y-auto overflow-hidden my-4 text-xs bg-neutral-900 p-2 rounded">
+      {/* <pre class="max-h-48 overflow-y-auto overflow-hidden my-4 text-xs bg-neutral-900 p-2 rounded">
         {JSON.stringify(drinkHistoryData(), null, 2)}
-      </pre>
-
+      </pre> */}
     </main>
   );
 }
