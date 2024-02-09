@@ -1,6 +1,6 @@
 
 export interface DrinkPoint {
-  time: number;
+  timestamp: number;
   amount: number;
 }
 
