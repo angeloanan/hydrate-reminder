@@ -14,6 +14,9 @@ dependencies:
   cal-heatmap:
     specifier: ^4.2.4
     version: 4.2.4
+  date-fns:
+    specifier: ^3.3.1
+    version: 3.3.1
   postcss:
     specifier: ^8.4.33
     version: 8.4.33
@@ -1367,6 +1370,10 @@ packages:
       d3-timer: 3.0.1
       d3-transition: 3.0.1(d3-selection@3.0.0)
       d3-zoom: 3.0.0
+    dev: false
+
+  /date-fns@3.3.1:
+    resolution: {integrity: sha512-y8e109LYGgoQDveiEBD3DYXKba1jWf5BA8YU1FL5Tvm0BTdEfy54WLCwnuYWZNnzzvALy/QQ4Hov+Q9RVRv+Zw==}
     dev: false
 
   /dayjs@1.11.10:

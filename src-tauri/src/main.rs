@@ -137,6 +137,16 @@ fn submit_drink(state: tauri::State<AppState>) {
 }
 
 #[tauri::command]
+fn get_latest_drink(app: AppHandle) -> Option<DrinkPoint> {
+    println!("[get_latest_drink] Sending latest drink data to FEnd");
+
+    let state = app.state::<AppState>();
+    let app_state = state.0.read().unwrap();
+
+    app_state.drink_history.last().copied()
+}
+
+#[tauri::command]
 fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
     println!("[list_drinks] Sending drink data to FEnd");
 
@@ -236,6 +246,7 @@ async fn main() {
             create_drink_notification,
             list_drinks,
             list_drinks_group_day,
+            get_latest_drink,
             oauth::start_oauth_authentication
         ])
         .build(tauri::generate_context!())
