@@ -22,6 +22,11 @@ pub struct InnerAppState {
     pub version: u16,
     pub has_onboarded: bool,
 
+    pub google_oauth_refresh_token: Option<String>,
+    pub google_oauth_access_token: Option<String>,
+    pub google_oauth_access_token_expiry_timestamp: i64,
+    pub google_fit_data_source_id: Option<String>,
+
     pub drink_history: Vec<DrinkPoint>,
 }
 
@@ -30,6 +35,11 @@ pub struct AppState(pub RwLock<InnerAppState>);
 const INITIAL_APP_STATE: InnerAppState = InnerAppState {
     version: 1,
     has_onboarded: false,
+
+    google_oauth_refresh_token: None,
+    google_oauth_access_token: None,
+    google_oauth_access_token_expiry_timestamp: 0,
+    google_fit_data_source_id: None,
 
     drink_history: vec![],
 };
@@ -45,6 +55,23 @@ fn parse_saved_data(bytes: &[u8]) -> InnerAppState {
     InnerAppState {
         version: saved_data_owned.get_version(),
         has_onboarded: saved_data_owned.get_has_onboarded(),
+
+        google_oauth_refresh_token: saved_data_owned.has_google_oauth_refresh_token().then(|| {
+            saved_data_owned
+                .get_google_oauth_refresh_token()
+                .unwrap()
+                .to_string()
+                .unwrap()
+        }),
+        google_oauth_access_token: None,
+        google_oauth_access_token_expiry_timestamp: 0,
+        google_fit_data_source_id: saved_data_owned.has_google_fit_data_source_id().then(|| {
+            saved_data_owned
+                .get_google_fit_data_source_id()
+                .unwrap()
+                .to_string()
+                .unwrap()
+        }),
 
         drink_history: saved_data_owned
             .get_drink_history()
@@ -64,6 +91,12 @@ fn serialize_app_state(state: &InnerAppState) -> Vec<u8> {
 
     app_state_builder.set_version(state.version);
     app_state_builder.set_has_onboarded(state.has_onboarded);
+    if let Some(token) = &state.google_oauth_refresh_token {
+        app_state_builder.set_google_oauth_refresh_token(token);
+    }
+    if let Some(token) = &state.google_fit_data_source_id {
+        app_state_builder.set_google_fit_data_source_id(token);
+    }
 
     let mut drink_history_builder =
         app_state_builder.init_drink_history(
@@ -111,6 +144,9 @@ pub fn get_saved_data() -> InnerAppState {
 
 pub fn save_app_state(state: &InnerAppState) -> Result<usize, std::io::Error> {
     let data_path = PROJECT_DIR.data_dir().join("history.bin");
+
+    println!("Saving app state to {data_path:?}");
+    println!("App state: {state:#?}");
 
     let binary_data = serialize_app_state(state);
     File::create(data_path)

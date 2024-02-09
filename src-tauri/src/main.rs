@@ -9,6 +9,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod google_fit;
 mod http;
 mod oauth;
 mod sound;
@@ -24,6 +25,9 @@ use {
 
 use {std::sync::RwLock, tauri::State};
 
+use oauth::ensure_access_token_validity;
+
+use google_fit::write_water_intake_data;
 use rodio::{OutputStream, Sink};
 use sound::{drink_audio, notification_audio};
 use storage::AppState;
@@ -124,16 +128,37 @@ fn create_drink_notification(app: AppHandle) {
     });
 }
 
-fn submit_drink(state: tauri::State<AppState>) {
+fn submit_drink(app: &AppHandle) {
+    let state = app.state::<AppState>();
+
     // Add a new drink point to the history & drop the lock
+    let drink_point = DrinkPoint::new(200.0);
     {
         let mut app_state = state.0.write().unwrap();
-        app_state.drink_history.push(DrinkPoint::new(200.0));
+        app_state.drink_history.push(drink_point);
     }
-
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
 
     play_drink_sound();
+
+    let google_oauth_refresh_token = state.0.read().unwrap().google_oauth_refresh_token.clone();
+    let google_fit_data_source_id = state.0.read().unwrap().google_fit_data_source_id.clone();
+
+    if google_oauth_refresh_token.is_some() && google_fit_data_source_id.is_some() {
+        let app = app.clone();
+        let app_state = app.state::<AppState>();
+        tokio::task::spawn(async move {
+            ensure_access_token_validity(app_state).await;
+
+            write_water_intake_data(
+                200.0,
+                Utc::now().timestamp(),
+                google_fit_data_source_id.unwrap(),
+                &google_oauth_refresh_token.unwrap(),
+            )
+            .await;
+        });
+    }
 }
 
 #[tauri::command]
@@ -181,7 +206,7 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     match event {
         tauri::SystemTrayEvent::LeftClick { position, .. } => {}
         tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-            "drink" => submit_drink(app.state()),
+            "drink" => submit_drink(app),
             "open-settings" => spawn_main_window(app),
 
             "quit" => app.exit(0),
