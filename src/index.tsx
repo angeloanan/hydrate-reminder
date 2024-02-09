@@ -27,7 +27,7 @@ const App = () => {
         {JSON.stringify(drinkHistoryData(), null, 2)}
       </pre>
 
-      <div class="flex items-center w-full justify-center p-4 bg-[hsl(288deg,93%,97%)] rounded text-neutral-800">
+      <div class="flex items-center w-full justify-center p-4 rounded bg-neutral-900">
         <Heatmap />
       </div>
 

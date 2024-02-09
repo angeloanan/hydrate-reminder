@@ -3,6 +3,8 @@ import CalHeatmap from 'cal-heatmap';
 import Tooltip from 'cal-heatmap/plugins/Tooltip';
 import { createEffect, createResource } from 'solid-js';
 import { invoke } from '@tauri-apps/api';
+import { WaterVolumeFormatter } from '../util/formatter';
+import { MONTHS } from '../util/datetime';
 
 const cal: CalHeatmap = new CalHeatmap();
 
@@ -37,12 +39,14 @@ export const Heatmap = () => {
         type: "day"
       },
       scale: {
-        color: {
-          scheme: "viridis",
-          type: "linear",
-        }
+        color: { type: 'diverging', scheme: 'PRGn', domain: [0, 2500] } 
       },
-    }, [[Tooltip, {}]])
+    }, [[Tooltip, {
+      text: (timestamp: number, value: number) => {
+        const date = new Date(timestamp)
+        return `${WaterVolumeFormatter.format(value)} on ${MONTHS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+      }
+    }]])
   })
 
   return (
