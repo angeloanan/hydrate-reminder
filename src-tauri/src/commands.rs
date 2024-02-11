@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use chrono::DateTime;
 use rodio::{OutputStream, Sink};
 use tauri::{AppHandle, Manager};
-use windows::Win32::UI::Shell::QUERY_USER_NOTIFICATION_STATE;
 
 use crate::{sound::notification_audio, storage::AppState, structs::drink_point::DrinkPoint};
 
