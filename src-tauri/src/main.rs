@@ -136,6 +136,7 @@ fn submit_drink(app: &AppHandle, amount: f64) {
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
 
     app.emit_all("drink", ()).unwrap();
+    app.trigger_global("drink", None);
 
     play_drink_sound();
 }
@@ -262,7 +263,7 @@ fn main() {
         app.set_activation_policy(tauri::ActivationPolicy::Accessory);
     }
 
-    tauri::async_runtime::spawn(notification_task(app.app_handle()));
+    tauri::async_runtime::spawn(notification_task_manager(app.app_handle()));
 
     app.run(|_, e| {
         if let tauri::RunEvent::ExitRequested { api, .. } = e {
@@ -271,27 +272,30 @@ fn main() {
     });
 }
 
-async fn notification_task(app: AppHandle) {
-    let state: State<AppState> = app.state();
+async fn notification_task_manager(app: AppHandle) {
+    // A channel to short-circuit the notification task
+    let (sender, mut receiver) = tokio::sync::mpsc::channel::<()>(1);
 
-    // Recheck every 60 seconds
+    app.listen_global("drink", move |_e| {
+        tauri::async_runtime::block_on(async { sender.send(()).await.unwrap() });
+    });
+
     loop {
-        tokio::time::sleep(time::Duration::from_secs(60)).await;
+        println!("[Re-]scheduling notification task");
 
-        let app_state = state.0.read().unwrap();
-
-        if let Some(point) = app_state.drink_history.last() {
-            let last_drink = DateTime::from_timestamp(point.timestamp, 0).expect(
-                "Invalid timestamp in drink history. Did you modify the data file manually?",
-            );
-            let now = chrono::Utc::now();
-            let diff = now - last_drink;
-
-            if diff > chrono::Duration::hours(1)
-                && diff < chrono::Duration::hours(1).add(Duration::minutes(1))
-            {
-                create_drink_notification(app.clone());
-            }
-        }
+        select! {
+            () = schedule_notification_task(app.clone()) => {
+                println!("Notification task completed, rescheduling");
+            },
+            _ = receiver.recv() => {
+                println!("Received drink event, rescheduling notification task");
+            },
+        };
     }
+}
+
+async fn schedule_notification_task(app: AppHandle) {
+    tokio::time::sleep(time::Duration::from_secs(60 * 60)).await;
+
+    create_drink_notification(app.clone());
 }
