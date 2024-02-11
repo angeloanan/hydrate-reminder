@@ -135,7 +135,7 @@ fn submit_drink(app: &AppHandle) {
 
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
 
-    app.emit_all("drink", {});
+    app.emit_all("drink", ()).unwrap();
 
     play_drink_sound();
 }
