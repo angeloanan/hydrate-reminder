@@ -175,6 +175,7 @@ fn main() {
             commands::list_drinks,
             commands::list_drinks_group_day,
             commands::get_latest_drink,
+            commands::can_send_notification,
             oauth::start_oauth_authentication
         ])
         .build(tauri::generate_context!())

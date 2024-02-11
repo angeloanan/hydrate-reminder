@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use chrono::DateTime;
 use rodio::{OutputStream, Sink};
 use tauri::{AppHandle, Manager};
+use windows::Win32::UI::Shell::QUERY_USER_NOTIFICATION_STATE;
 
 use crate::{sound::notification_audio, storage::AppState, structs::drink_point::DrinkPoint};
 
@@ -39,6 +40,70 @@ pub fn create_drink_notification(app: AppHandle) {
 
         sink.sleep_until_end();
     });
+}
+
+#[tauri::command]
+pub fn can_send_notification(app: tauri::AppHandle) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let is_focus_supported = windows::UI::Shell::FocusSessionManager::IsSupported().ok();
+        let notification_state =
+            unsafe { windows::Win32::UI::Shell::SHQueryUserNotificationState() }
+                .expect("Failed to get Windows' notification state");
+        let notif_status = notification_state.0;
+
+        println!("Focus session supported: {is_focus_supported:?}");
+        println!("Notification state: {notif_status}");
+
+        match notif_status {
+            // A screen saver is displayed, the machine is locked, or a nonactive Fast User Switching session is in progress.
+            1 => {
+                println!("[can_send_notification] Notifications are not present");
+                return false;
+            }
+            // A full-screen application is running or Presentation Settings are applied.
+            // Presentation Settings allow a user to put their machine into a state fit for an uninterrupted presentation, such as a set of PowerPoint slides, with a single click.
+            2 => {
+                println!("[can_send_notification] Notifications are busy");
+                return false;
+            }
+            // A full-screen (exclusive mode) Direct3D application is running.
+            3 => {
+                println!("[can_send_notification] Notifications are in driving mode");
+                return false;
+            }
+            // The user has activated Windows presentation settings to block notifications and pop-up messages.
+            4 => {
+                println!("[can_send_notification] Notifications are not supported");
+                return false;
+            }
+            // None of the other states are found, notifications can be freely sent
+            5 => {
+                println!("[can_send_notification] Notifications are supported");
+                return true;
+            }
+            // Introduced in Windows 7. The current user is in "quiet time", which is the first hour after a new user logs into his or her account for the first time.
+            // During this time, most notifications should not be sent or shown. This lets a user become accustomed to a new computer system without those distractions.
+            // Quiet time also occurs for each user after an operating system upgrade or clean installation.
+            //
+            // Applications should set the NIIF_RESPECT_QUIET_TIME flag in their notifications or balloon tooltip,
+            // which prevents those items from being displayed while the current user is in the quiet-time state.
+            6 => {
+                return false;
+            }
+            // A Windows Store app is running.
+            7 => {
+                return false;
+            }
+            _ => {
+                println!("[can_send_notification] Unknown notification state: {notif_status}");
+
+                return false;
+            }
+        }
+    }
+
+    true
 }
 
 #[tauri::command]
