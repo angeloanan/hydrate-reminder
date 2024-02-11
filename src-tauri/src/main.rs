@@ -124,13 +124,13 @@ fn create_drink_notification(app: AppHandle) {
     });
 }
 
-fn submit_drink(app: &AppHandle) {
+fn submit_drink(app: &AppHandle, amount: f64) {
     let state = app.state::<AppState>();
 
     // Add a new drink point to the history & drop the lock
     {
         let mut app_state = state.0.write().unwrap();
-        app_state.drink_history.push(DrinkPoint::new(200.0));
+        app_state.drink_history.push(DrinkPoint::new(amount));
     }
 
     storage::save_app_state(&state.0.read().unwrap()).unwrap();
@@ -195,7 +195,8 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     match event {
         tauri::SystemTrayEvent::LeftClick { position, .. } => {}
         tauri::SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-            "drink" => submit_drink(app),
+            "drink-full" => submit_drink(app, 200.0),
+            "drink-half" => submit_drink(app, 100.0),
             "open-settings" => spawn_main_window(app),
 
             "quit" => app.exit(0),
@@ -222,9 +223,10 @@ async fn main() {
     }
 
     let tray_menu = SystemTrayMenu::new()
-        .add_item(CustomMenuItem::new("drink", "🥛 Drink"))
-        .add_item(CustomMenuItem::new("open-settings", "Open Settings"))
+        .add_item(CustomMenuItem::new("drink-full", "🥛 Drink (200ml)"))
+        .add_item(CustomMenuItem::new("drink-half", "💧 Sip (100ml)"))
         .add_native_item(tauri::SystemTrayMenuItem::Separator)
+        .add_item(CustomMenuItem::new("open-settings", "Settings"))
         .add_item(CustomMenuItem::new("quit", "Quit"));
 
     let mut tray = SystemTray::new()
