@@ -6,31 +6,29 @@
 #![warn(clippy::complexity)]
 #![warn(clippy::style)]
 #![feature(lazy_cell)]
+#![allow(clippy::redundant_pub_crate)]
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
 mod http;
 mod oauth;
 mod sound;
 mod storage;
 mod structs;
 
-use {
-    chrono::{prelude::*, Duration},
-    std::{collections::HashMap, ops::Add},
-    structs::drink_point::DrinkPoint,
-    tauri::Position,
-};
+use {structs::drink_point::DrinkPoint, tauri::Position};
 
-use {std::sync::RwLock, tauri::State};
+use std::sync::RwLock;
 
+use commands::create_drink_notification;
 use rodio::{OutputStream, Sink};
-use sound::{drink_audio, notification_audio};
+use sound::drink_audio;
 use storage::AppState;
 use tauri::{
     AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
-use tokio::time;
+use tokio::{select, time};
 
 #[cfg(debug_assertions)]
 const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder-dev";
@@ -89,41 +87,6 @@ fn spawn_main_window(app: &AppHandle) {
 }
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn create_drink_notification(app: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-
-        sink.append(notification_audio());
-
-        #[cfg(target_os = "macos")]
-        {
-            mac_notification_sys::Notification::new()
-                .app_icon("")
-                .title("Time to drink!")
-                .message("It's been 1 hour since your last drink, time to drink again!")
-                .send()
-                .unwrap();
-        }
-
-        #[cfg(target_os = "windows")]
-        {
-            winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
-                .title("Time to drink!")
-                .text1("It's been 1 hour since your last drink, time to drink again!")
-                .duration(winrt_notification::Duration::Short)
-                .sound(None)
-                .show()
-                .unwrap();
-        }
-
-        // TODO: Add Linux support
-
-        sink.sleep_until_end();
-    });
-}
-
 fn submit_drink(app: &AppHandle, amount: f64) {
     let state = app.state::<AppState>();
 
@@ -139,47 +102,6 @@ fn submit_drink(app: &AppHandle, amount: f64) {
     app.trigger_global("drink", None);
 
     play_drink_sound();
-}
-
-#[tauri::command]
-fn get_latest_drink(app: AppHandle) -> Option<DrinkPoint> {
-    println!("[get_latest_drink] Sending latest drink data to FEnd");
-
-    let state = app.state::<AppState>();
-    let app_state = state.0.read().unwrap();
-
-    app_state.drink_history.last().copied()
-}
-
-#[tauri::command]
-fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
-    println!("[list_drinks] Sending drink data to FEnd");
-
-    state.0.read().unwrap().drink_history.clone()
-}
-
-#[tauri::command]
-fn list_drinks_group_day(state: tauri::State<AppState>) -> HashMap<String, f64> {
-    println!("[list_drinks_group_day] Sending drink data to FEnd");
-
-    let drink_history = state.0.read().unwrap().drink_history.clone();
-
-    let mut grouped_drinks: HashMap<String, f64> = HashMap::new();
-
-    // Iterate through drinks, group drinks by day - DrinkPoint timestamp is set to 00:00:00
-    for point in &drink_history {
-        let local_datetime = DateTime::from_timestamp(point.timestamp, 0)
-            .unwrap()
-            .naive_local()
-            .date();
-
-        let entry = grouped_drinks
-            .entry(local_datetime.to_string())
-            .or_insert(0.0);
-        *entry += point.amount;
-    }
-
-    grouped_drinks
 }
 
 fn play_drink_sound() {
@@ -249,10 +171,10 @@ fn main() {
         .system_tray(tray)
         .on_system_tray_event(handle_tray_event)
         .invoke_handler(tauri::generate_handler![
-            create_drink_notification,
-            list_drinks,
-            list_drinks_group_day,
-            get_latest_drink,
+            commands::create_drink_notification,
+            commands::list_drinks,
+            commands::list_drinks_group_day,
+            commands::get_latest_drink,
             oauth::start_oauth_authentication
         ])
         .build(tauri::generate_context!())
@@ -297,5 +219,5 @@ async fn notification_task_manager(app: AppHandle) {
 async fn schedule_notification_task(app: AppHandle) {
     tokio::time::sleep(time::Duration::from_secs(60 * 60)).await;
 
-    create_drink_notification(app.clone());
+    create_drink_notification();
 }
