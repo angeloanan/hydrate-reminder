@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager};
 use crate::{sound::notification_audio, storage::AppState, structs::drink_point::DrinkPoint};
 
 #[tauri::command]
-pub fn create_drink_notification() {
+pub fn create_drink_notification(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();

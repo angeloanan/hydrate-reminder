@@ -241,5 +241,5 @@ async fn schedule_notification_task(app: AppHandle) {
 
     tokio::time::sleep(time_difference.to_std().unwrap()).await;
 
-    create_drink_notification();
+    create_drink_notification(app);
 }
