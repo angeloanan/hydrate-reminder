@@ -19,7 +19,7 @@ mod structs;
 
 use {structs::drink_point::DrinkPoint, tauri::Position};
 
-use std::sync::RwLock;
+use std::{sync::RwLock, time::Duration};
 
 use commands::create_drink_notification;
 use rodio::{OutputStream, Sink};
@@ -28,7 +28,7 @@ use storage::AppState;
 use tauri::{
     AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
-use tokio::{select, time};
+use tokio::select;
 
 #[cfg(debug_assertions)]
 const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder-dev";
@@ -217,7 +217,29 @@ async fn notification_task_manager(app: AppHandle) {
 }
 
 async fn schedule_notification_task(app: AppHandle) {
-    tokio::time::sleep(time::Duration::from_secs(60 * 60)).await;
+    let last_drink_timestamp = {
+        let state = app.state::<AppState>();
+        let app_state = state.0.read().unwrap();
+        app_state
+            .drink_history
+            .last()
+            .unwrap_or(&DrinkPoint::default())
+            .timestamp
+    };
+    let last_drink_time = chrono::DateTime::from_timestamp(last_drink_timestamp, 0).unwrap();
+    let next_drink_time = last_drink_time + chrono::Duration::hours(1);
+    let time_difference = next_drink_time - chrono::Utc::now();
+
+    if time_difference.num_seconds() < 0 {
+        // If the time difference is negative, we've already passed the next drink time
+        // so we'll just wait indefinitely
+        //
+        // TODO: Handle this edge case in the future, maybe set an hourly / daily reminder
+
+        tokio::time::sleep(Duration::MAX).await;
+    }
+
+    tokio::time::sleep(time_difference.to_std().unwrap()).await;
 
     create_drink_notification();
 }
