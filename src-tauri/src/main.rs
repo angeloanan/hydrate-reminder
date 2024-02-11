@@ -91,7 +91,7 @@ fn spawn_main_window(app: &AppHandle) {
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn create_drink_notification(app: AppHandle) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
@@ -182,7 +182,7 @@ fn list_drinks_group_day(state: tauri::State<AppState>) -> HashMap<String, f64> 
 }
 
 fn play_drink_sound() {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
 
@@ -209,8 +209,7 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
     }
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     // Setup notifications on macos
     #[cfg(target_os = "macos")]
     {
@@ -263,7 +262,7 @@ async fn main() {
         app.set_activation_policy(tauri::ActivationPolicy::Accessory);
     }
 
-    tokio::task::spawn(notification_task(app.app_handle()));
+    tauri::async_runtime::spawn(notification_task(app.app_handle()));
 
     app.run(|_, e| {
         if let tauri::RunEvent::ExitRequested { api, .. } = e {
