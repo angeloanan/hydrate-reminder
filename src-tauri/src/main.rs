@@ -19,8 +19,8 @@ mod structs;
 
 use {structs::drink_point::DrinkPoint, tauri::Position};
 
-use std::{sync::RwLock, time::Duration};
-
+use chrono::{Duration, Local, Timelike};
+use std::sync::RwLock;
 use tracing::{instrument, trace, warn};
 use tracing_subscriber::prelude::*;
 
@@ -226,7 +226,7 @@ async fn notification_task_manager(app: AppHandle) {
     loop {
         trace!("[Re-]scheduling notification task");
         // Debounce 1s
-        tokio::time::sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(Duration::seconds(1).to_std().unwrap()).await;
 
         select! {
             () = schedule_notification_task(app.clone()) => {
@@ -260,10 +260,14 @@ async fn schedule_notification_task(app: AppHandle) {
         //
         // TODO: Handle this edge case in the future, maybe set an hourly / daily reminder
 
-        tokio::time::sleep(Duration::MAX).await;
+        let mut start_day_tomorrow = chrono::Local::now() + Duration::days(1);
+        start_day_tomorrow = start_day_tomorrow.with_hour(10).unwrap();
+        let time_until_start_day_tomorrow = start_day_tomorrow - Local::now();
+
+        tokio::time::sleep(time_until_start_day_tomorrow.to_std().unwrap()).await;
+    } else {
+        tokio::time::sleep(time_difference.to_std().unwrap()).await;
+
+        create_drink_notification(app);
     }
-
-    tokio::time::sleep(time_difference.to_std().unwrap()).await;
-
-    create_drink_notification(app);
 }
