@@ -6,6 +6,9 @@ on:
     branches:
       - release
 
+env:
+  SENTRY_DSN: $SENTRY_DSN
+
 jobs:
   publish-tauri:
     permissions:
