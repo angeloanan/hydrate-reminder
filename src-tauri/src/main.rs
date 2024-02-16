@@ -149,7 +149,7 @@ fn main() {
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
-        .with(sentry_tracing::layer())
+        .with(sentry::integrations::tracing::layer())
         .init();
 
     // Setup notifications on macos
