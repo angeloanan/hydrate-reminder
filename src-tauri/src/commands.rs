@@ -7,7 +7,7 @@ use tracing::{error, instrument, trace, warn};
 
 use crate::{sound::notification_audio, storage::AppState, structs::drink_point::DrinkPoint};
 
-#[instrument]
+#[instrument(skip(app))]
 #[tauri::command]
 pub fn create_drink_notification(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -47,7 +47,7 @@ pub fn create_drink_notification(app: AppHandle) {
     });
 }
 
-#[instrument]
+#[instrument(skip(app))]
 #[tauri::command]
 pub fn can_send_notification(app: tauri::AppHandle) -> bool {
     #[cfg(target_os = "windows")]
@@ -107,19 +107,18 @@ pub fn can_send_notification(app: tauri::AppHandle) -> bool {
     true
 }
 
+#[instrument(skip(app))]
 #[tauri::command]
 pub fn get_latest_drink(app: AppHandle) -> Option<DrinkPoint> {
     trace!("Sending latest drink data to FEnd");
 
     let state = app.state::<AppState>();
-#[instrument]
-#[instrument]
-#[instrument]
     let app_state = state.0.read().unwrap();
 
     app_state.drink_history.last().copied()
 }
 
+#[instrument(skip(state))]
 #[tauri::command]
 pub fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
     trace!("Sending drink data to FEnd");
@@ -127,6 +126,7 @@ pub fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
     state.0.read().unwrap().drink_history.clone()
 }
 
+#[instrument(skip(state))]
 #[tauri::command]
 pub fn list_drinks_group_day(state: tauri::State<AppState>) -> HashMap<String, f64> {
     trace!("Sending drink data to FEnd");

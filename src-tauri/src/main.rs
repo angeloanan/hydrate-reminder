@@ -43,9 +43,8 @@ pub mod app_capnp {
     include!(concat!(env!("OUT_DIR"), "/schema/app_capnp.rs"));
 }
 
+#[instrument(skip(app))]
 fn spawn_main_window(app: &AppHandle) {
-fn spawn_main_window(app: &AppHandle) {
-#[instrument]
     if let Some(main_window) = app.get_window("main") {
         return main_window
             .set_focus()
@@ -91,8 +90,8 @@ fn spawn_main_window(app: &AppHandle) {
 }
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+#[instrument(skip(app))]
 fn submit_drink(app: &AppHandle, amount: f64) {
-#[instrument]
     let state = app.state::<AppState>();
 
     // Add a new drink point to the history & drop the lock
@@ -109,8 +108,8 @@ fn submit_drink(app: &AppHandle, amount: f64) {
     play_drink_sound();
 }
 
-fn play_drink_sound() {
 #[instrument]
+fn play_drink_sound() {
     tauri::async_runtime::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
@@ -139,7 +138,6 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
 }
 
 fn main() {
-    // Setup notifications on macos
     let _guard = sentry::init((
         env!("SENTRY_DSN"),
         sentry::ClientOptions {
@@ -154,6 +152,7 @@ fn main() {
         .with(sentry_tracing::layer())
         .init();
 
+    // Setup notifications on macos
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::get_bundle_identifier_or_default;
@@ -215,8 +214,8 @@ fn main() {
     });
 }
 
-async fn notification_task_manager(app: AppHandle) {
 #[instrument(skip(app))]
+async fn notification_task_manager(app: AppHandle) {
     // A channel to short-circuit the notification task
     let (sender, mut receiver) = tokio::sync::mpsc::channel::<()>(1);
 
@@ -240,8 +239,8 @@ async fn notification_task_manager(app: AppHandle) {
     }
 }
 
-async fn schedule_notification_task(app: AppHandle) {
 #[instrument]
+async fn schedule_notification_task(app: AppHandle) {
     let last_drink_timestamp = {
         let state = app.state::<AppState>();
         let app_state = state.0.read().unwrap();
