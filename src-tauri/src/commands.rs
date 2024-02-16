@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use chrono::DateTime;
 use rodio::{OutputStream, Sink};
 use tauri::{AppHandle, Manager};
+use tracing::{error, instrument, trace, warn};
 
 use crate::{sound::notification_audio, storage::AppState, structs::drink_point::DrinkPoint};
 
+#[instrument]
 #[tauri::command]
 pub fn create_drink_notification(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -16,23 +18,27 @@ pub fn create_drink_notification(app: AppHandle) {
 
         #[cfg(target_os = "macos")]
         {
-            mac_notification_sys::Notification::new()
+            if let Err(e) = mac_notification_sys::Notification::new()
                 .app_icon("")
                 .title("Time to drink!")
                 .message("It's been 1 hour since your last drink, time to drink again!")
                 .send()
-                .unwrap();
+            {
+                error!("Failed to send drink notification: {e}");
+            }
         }
 
         #[cfg(target_os = "windows")]
         {
-            winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
+            if let Err(e) = winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
                 .title("Time to drink!")
                 .text1("It's been 1 hour since your last drink, time to drink again!")
                 .duration(winrt_notification::Duration::Short)
                 .sound(None)
                 .show()
-                .unwrap();
+            {
+                error!("Failed to send drink notification: {e}");
+            }
         }
 
         // TODO: Add Linux support
@@ -41,6 +47,7 @@ pub fn create_drink_notification(app: AppHandle) {
     });
 }
 
+#[instrument]
 #[tauri::command]
 pub fn can_send_notification(app: tauri::AppHandle) -> bool {
     #[cfg(target_os = "windows")]
@@ -51,34 +58,29 @@ pub fn can_send_notification(app: tauri::AppHandle) -> bool {
                 .expect("Failed to get Windows' notification state");
         let notif_status = notification_state.0;
 
-        println!("Focus session supported: {is_focus_supported:?}");
-        println!("Notification state: {notif_status}");
+        trace!("Focus session supported: {is_focus_supported:?}");
+        trace!("Notification state: {notif_status}");
 
         match notif_status {
             // A screen saver is displayed, the machine is locked, or a nonactive Fast User Switching session is in progress.
             1 => {
-                println!("[can_send_notification] Notifications are not present");
                 return false;
             }
             // A full-screen application is running or Presentation Settings are applied.
             // Presentation Settings allow a user to put their machine into a state fit for an uninterrupted presentation, such as a set of PowerPoint slides, with a single click.
             2 => {
-                println!("[can_send_notification] Notifications are busy");
                 return false;
             }
             // A full-screen (exclusive mode) Direct3D application is running.
             3 => {
-                println!("[can_send_notification] Notifications are in driving mode");
                 return false;
             }
             // The user has activated Windows presentation settings to block notifications and pop-up messages.
             4 => {
-                println!("[can_send_notification] Notifications are not supported");
                 return false;
             }
             // None of the other states are found, notifications can be freely sent
             5 => {
-                println!("[can_send_notification] Notifications are supported");
                 return true;
             }
             // Introduced in Windows 7. The current user is in "quiet time", which is the first hour after a new user logs into his or her account for the first time.
@@ -95,7 +97,7 @@ pub fn can_send_notification(app: tauri::AppHandle) -> bool {
                 return false;
             }
             _ => {
-                println!("[can_send_notification] Unknown notification state: {notif_status}");
+                warn!("Unknown notification state: {notif_status}");
 
                 return false;
             }
@@ -107,9 +109,12 @@ pub fn can_send_notification(app: tauri::AppHandle) -> bool {
 
 #[tauri::command]
 pub fn get_latest_drink(app: AppHandle) -> Option<DrinkPoint> {
-    println!("[get_latest_drink] Sending latest drink data to FEnd");
+    trace!("Sending latest drink data to FEnd");
 
     let state = app.state::<AppState>();
+#[instrument]
+#[instrument]
+#[instrument]
     let app_state = state.0.read().unwrap();
 
     app_state.drink_history.last().copied()
@@ -117,14 +122,14 @@ pub fn get_latest_drink(app: AppHandle) -> Option<DrinkPoint> {
 
 #[tauri::command]
 pub fn list_drinks(state: tauri::State<AppState>) -> Vec<DrinkPoint> {
-    println!("[list_drinks] Sending drink data to FEnd");
+    trace!("Sending drink data to FEnd");
 
     state.0.read().unwrap().drink_history.clone()
 }
 
 #[tauri::command]
 pub fn list_drinks_group_day(state: tauri::State<AppState>) -> HashMap<String, f64> {
-    println!("[list_drinks_group_day] Sending drink data to FEnd");
+    trace!("Sending drink data to FEnd");
 
     let drink_history = state.0.read().unwrap().drink_history.clone();
 

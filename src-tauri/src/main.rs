@@ -21,6 +21,9 @@ use {structs::drink_point::DrinkPoint, tauri::Position};
 
 use std::{sync::RwLock, time::Duration};
 
+use tracing::{instrument, trace, warn};
+use tracing_subscriber::prelude::*;
+
 use commands::create_drink_notification;
 use rodio::{OutputStream, Sink};
 use sound::drink_audio;
@@ -41,6 +44,8 @@ pub mod app_capnp {
 }
 
 fn spawn_main_window(app: &AppHandle) {
+fn spawn_main_window(app: &AppHandle) {
+#[instrument]
     if let Some(main_window) = app.get_window("main") {
         return main_window
             .set_focus()
@@ -75,7 +80,6 @@ fn spawn_main_window(app: &AppHandle) {
         let app_handle = app.clone();
         window.on_window_event(move |e| {
             if matches!(e, tauri::WindowEvent::Focused(false)) {
-                println!("Closing window");
                 app_handle
                     .get_window("main")
                     .unwrap()
@@ -88,6 +92,7 @@ fn spawn_main_window(app: &AppHandle) {
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 fn submit_drink(app: &AppHandle, amount: f64) {
+#[instrument]
     let state = app.state::<AppState>();
 
     // Add a new drink point to the history & drop the lock
@@ -105,6 +110,7 @@ fn submit_drink(app: &AppHandle, amount: f64) {
 }
 
 fn play_drink_sound() {
+#[instrument]
     tauri::async_runtime::spawn(async move {
         let (_stream, stream_handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&stream_handle).unwrap();
@@ -125,7 +131,7 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
             "quit" => app.exit(0),
 
             _ => {
-                println!("Unknown menu item clicked: {id}");
+                warn!("Unknown menu item clicked: {id}");
             }
         },
         _ => (),
@@ -134,6 +140,20 @@ fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {
 
 fn main() {
     // Setup notifications on macos
+    let _guard = sentry::init((
+        env!("SENTRY_DSN"),
+        sentry::ClientOptions {
+            release: sentry::release_name!(),
+            traces_sample_rate: 1.0,
+            ..Default::default()
+        },
+    ));
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(sentry_tracing::layer())
+        .init();
+
     #[cfg(target_os = "macos")]
     {
         use mac_notification_sys::get_bundle_identifier_or_default;
@@ -164,7 +184,7 @@ fn main() {
 
     let app_state = storage::get_saved_data();
 
-    println!("Loaded app state: {app_state:#?}");
+    trace!("Loaded app state: {app_state:#?}");
 
     let mut app = tauri::Builder::default()
         .manage(AppState(RwLock::new(app_state)))
@@ -196,6 +216,7 @@ fn main() {
 }
 
 async fn notification_task_manager(app: AppHandle) {
+#[instrument(skip(app))]
     // A channel to short-circuit the notification task
     let (sender, mut receiver) = tokio::sync::mpsc::channel::<()>(1);
 
@@ -204,22 +225,23 @@ async fn notification_task_manager(app: AppHandle) {
     });
 
     loop {
-        println!("[Re-]scheduling notification task");
+        trace!("[Re-]scheduling notification task");
         // Debounce 1s
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         select! {
             () = schedule_notification_task(app.clone()) => {
-                println!("Notification task completed, rescheduling");
+                trace!("Notification task completed, rescheduling");
             },
             _ = receiver.recv() => {
-                println!("Received drink event, rescheduling notification task");
+                trace!("Received drink event, rescheduling notification task");
             },
         };
     }
 }
 
 async fn schedule_notification_task(app: AppHandle) {
+#[instrument]
     let last_drink_timestamp = {
         let state = app.state::<AppState>();
         let app_state = state.0.read().unwrap();

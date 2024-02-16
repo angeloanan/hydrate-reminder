@@ -7,6 +7,7 @@ use std::{
 use capnp::message::{ReaderOptions, TypedReader};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use tracing::trace;
 
 use crate::{app_capnp::app_state, structs::drink_point::DrinkPoint};
 
@@ -88,7 +89,7 @@ fn serialize_app_state(state: &InnerAppState) -> Vec<u8> {
 
 pub fn get_saved_data() -> InnerAppState {
     let data_path = PROJECT_DIR.data_dir().join("history.bin");
-    println!("Data path: {data_path:?}");
+    trace!("Data path: {data_path:?}");
 
     if !PROJECT_DIR
         .data_dir()

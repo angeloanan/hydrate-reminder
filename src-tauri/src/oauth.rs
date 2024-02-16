@@ -6,6 +6,7 @@ use {
 use reqwest::Url;
 use tauri::{AppHandle, Manager, WindowBuilder};
 use tiny_http::{Response, Server};
+use tracing::{debug, trace};
 
 const GOOGLE_OAUTH_URL: LazyLock<Url> = LazyLock::new(|| {
     let qs = querystring::stringify(vec![
@@ -46,11 +47,11 @@ pub fn start_oauth_authentication(app: AppHandle) {
 
 pub fn redirect_server(app: &AppHandle) {
     let http_server = Server::http("localhost:11132").unwrap();
-    println!("HTTP Server now listening on {}", http_server.server_addr());
+    debug!("HTTP Server now listening on {}", http_server.server_addr());
 
     for request in http_server.incoming_requests() {
         let req_url = request.url();
-        println!("Received request: {req_url}");
+        trace!("Received request: {req_url}");
 
         if !req_url.starts_with("/?") {
             request
@@ -71,7 +72,7 @@ pub fn redirect_server(app: &AppHandle) {
             continue;
         }
 
-        println!("Received code: {}", code.unwrap().1);
+        debug!("Received code: {}", code.unwrap().1);
         app.get_window("oauth").and_then(|w| w.close().ok());
 
         request
@@ -83,7 +84,7 @@ pub fn redirect_server(app: &AppHandle) {
         break;
     }
 
-    println!("Shutting down HTTP Server");
+    debug!("Shutting down HTTP Server");
     http_server.unblock();
     std::mem::drop(http_server);
 }
