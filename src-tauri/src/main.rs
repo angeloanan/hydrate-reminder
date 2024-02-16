@@ -205,6 +205,8 @@ async fn notification_task_manager(app: AppHandle) {
 
     loop {
         println!("[Re-]scheduling notification task");
+        // Debounce 1s
+        tokio::time::sleep(Duration::from_secs(1)).await;
 
         select! {
             () = schedule_notification_task(app.clone()) => {
