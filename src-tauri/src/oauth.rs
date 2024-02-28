@@ -1,31 +1,10 @@
-use {
-    std::sync::LazyLock,
-    tauri::api::shell::{open, Program},
-};
+use tauri::api::shell::open;
 
-use reqwest::Url;
 use tauri::{AppHandle, Manager, WindowBuilder};
 use tiny_http::{Response, Server};
 use tracing::{debug, trace};
 
-const GOOGLE_OAUTH_URL: LazyLock<Url> = LazyLock::new(|| {
-    let qs = querystring::stringify(vec![
-        (
-            "client_id",
-            "359154028055-42ip89g4r9m78pgoug1rpropgmbpgfa9.apps.googleusercontent.com",
-        ),
-        (
-            "scope",
-            "https://www.googleapis.com/auth/fitness.nutrition.write",
-        ),
-        ("prompt", "consent"),
-        ("response_type", "code"),
-        ("redirect_uri", "http://localhost:11132"),
-        ("access_type", "online"),
-    ]);
-
-    Url::parse(format!("https://accounts.google.com/o/oauth2/v2/auth?{qs}").as_str()).unwrap()
-});
+const GOOGLE_OAUTH_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=359154028055-42ip89g4r9m78pgoug1rpropgmbpgfa9.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Ffitness.nutrition.write&prompt=consent&redirect_uri=http%3A%2F%2Flocalhost%3A11132&access_type=online";
 
 #[tauri::command]
 pub fn start_oauth_authentication(app: AppHandle) {
@@ -38,7 +17,7 @@ pub fn start_oauth_authentication(app: AppHandle) {
             .build()
             .expect("Unable to create a new window!");
 
-        open(&app.shell_scope(), GOOGLE_OAUTH_URL.as_ref(), None).unwrap();
+        open(&app.shell_scope(), GOOGLE_OAUTH_URL, None).unwrap();
 
         // Spawn OAuth server
         tokio::task::spawn(async move { redirect_server(&app.app_handle()) });
