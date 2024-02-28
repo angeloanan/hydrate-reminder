@@ -1,7 +1,7 @@
 use chrono::{Duration, Local, Timelike};
 use tauri::{AppHandle, Manager};
 use tokio::select;
-use tracing::{instrument, trace};
+use tracing::{instrument, trace, warn};
 
 use crate::{
     commands::create_drink_notification, storage::AppState, structs::drink_point::DrinkPoint,
@@ -13,7 +13,13 @@ pub async fn task_manager(app: AppHandle) {
     let (sender, mut receiver) = tokio::sync::mpsc::channel::<()>(1);
 
     app.listen_global("drink", move |_e| {
-        tauri::async_runtime::block_on(async { sender.send(()).await.unwrap() });
+        trace!("Received drink event. Sending reschedule signal");
+        tauri::async_runtime::block_on(async {
+            match sender.try_send(()) {
+                Ok(_) => trace!("Rescheduled drink notification"),
+                Err(e) => warn!("Failed to reschedule drink notification: {e}"),
+            }
+        });
     });
 
     loop {
