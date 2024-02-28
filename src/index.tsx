@@ -2,7 +2,7 @@ import { render } from "solid-js/web";
 
 import "./styles.css";
 
-import { Show, createResource, createSignal, onCleanup, onMount } from "solid-js";
+import { ErrorBoundary, Match, Show, Switch, createResource, createSignal, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/tauri";
 import { DrinkPoint } from "./types/DrinkHistory.ts";
 import { Heatmap } from "./components/heatmap.tsx";
@@ -33,20 +33,35 @@ const App = () => {
     unlistenDrink()?.()
   })
 
+  const lastDrinkTime = () => formatDistance(latestDrink()!.timestamp * 1000, Date.now(), { addSuffix: true })
+  const isLastDrinkOld = () => {
+    if (latestDrink() == null) return false
+    return latestDrink()!.timestamp + 3600 < Math.floor(Date.now() / 1000)
+  }
+
   return (
     <main class="m-4">
       <h1 class="font-light text-3xl text-blue-100">🥛 Hydrate</h1>
 
       <NotificationWarning />
 
-      <Show when={!latestDrink.loading}>
-        <div class="bg-neutral-900 my-2 text-xs p-2">
-          <Show when={latestDrink() != null} fallback={<p>You haven'n drinked. Maybe drink now?</p>}>
-            <p>Your last drink was {formatDistance(latestDrink()!.timestamp * 1000, Date.now(), { addSuffix: true })}.</p>
-            <p>You will be notified {formatDistance((latestDrink()!.timestamp + 3600) * 1000, Date.now(), { addSuffix: true, includeSeconds: false })}. </p>
-          </Show>
-        </div>
-      </Show>
+      <ErrorBoundary fallback={(err) => <div>Error: {err.message}</div>}>
+        <Show when={!latestDrink.loading}>
+          <div class="bg-neutral-900 my-2 text-xs p-2">
+            <Show when={latestDrink() != null} fallback={<p>You haven&apos;t drinked. Go take a sip of water!</p>}>
+              <p>Your last drink was {lastDrinkTime()}.</p>
+              <Switch>
+                <Match when={isLastDrinkOld()}>
+                  <p>It&apos;s been a while since your last drink. Go take a sip of water!</p>
+                </Match>
+                <Match when={!isLastDrinkOld()}>
+                  <p>You will be notified {formatDistance((latestDrink()!.timestamp + 3600) * 1000, Date.now(), { addSuffix: true, includeSeconds: false })}. </p>
+                </Match>
+              </Switch>
+            </Show>
+          </div>
+        </Show>
+      </ErrorBoundary>
 
       <div class="flex items-center w-full justify-center p-4 rounded bg-neutral-900">
         <Heatmap />
