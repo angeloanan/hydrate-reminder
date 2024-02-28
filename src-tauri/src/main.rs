@@ -18,6 +18,7 @@ mod storage;
 mod structs;
 mod tasks;
 
+use crate::storage::PROJECT_DIR;
 
 use {structs::drink_point::DrinkPoint, tauri::Position};
 
@@ -31,7 +32,8 @@ use rodio::{OutputStream, Sink};
 use sound::drink_audio;
 use storage::AppState;
 use tauri::{
-    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+    api::path::app_log_dir, AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent,
+    SystemTrayMenu, WindowBuilder,
 };
 use tokio::select;
 
@@ -149,8 +151,16 @@ fn main() {
         },
     ));
 
+    let tracing_file_appender = tracing_appender::rolling::daily(PROJECT_DIR.data_dir(), "log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(tracing_file_appender);
+
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(non_blocking),
+        )
         .with(sentry::integrations::tracing::layer())
         .init();
 

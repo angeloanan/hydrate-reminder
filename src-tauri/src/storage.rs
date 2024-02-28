@@ -12,10 +12,10 @@ use tracing::trace;
 use crate::{app_capnp::app_state, structs::drink_point::DrinkPoint};
 
 #[cfg(debug_assertions)]
-static PROJECT_DIR: LazyLock<ProjectDirs> =
+pub static PROJECT_DIR: LazyLock<ProjectDirs> =
     LazyLock::new(|| ProjectDirs::from("fyi", "angelo", "hydrate-reminder-dev").unwrap());
 #[cfg(not(debug_assertions))]
-static PROJECT_DIR: LazyLock<ProjectDirs> =
+pub static PROJECT_DIR: LazyLock<ProjectDirs> =
     LazyLock::new(|| ProjectDirs::from("fyi", "angelo", "hydrate-reminder").unwrap());
 
 #[derive(Serialize, Deserialize, Debug)]
