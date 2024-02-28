@@ -18,24 +18,21 @@ mod storage;
 mod structs;
 mod tasks;
 
+use std::sync::RwLock;
+
 use crate::storage::PROJECT_DIR;
 
 use {structs::drink_point::DrinkPoint, tauri::Position};
 
-use chrono::{Duration, Local, Timelike};
-use std::sync::RwLock;
+use rodio::{cpal::traits::HostTrait, OutputStream, Sink};
 use tracing::{instrument, trace, warn};
 use tracing_subscriber::prelude::*;
 
-use commands::create_drink_notification;
-use rodio::{OutputStream, Sink};
 use sound::drink_audio;
 use storage::AppState;
 use tauri::{
-    api::path::app_log_dir, AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent,
-    SystemTrayMenu, WindowBuilder,
+    AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
 };
-use tokio::select;
 
 #[cfg(debug_assertions)]
 const PROJECT_IDENTIFIER: &str = "fyi.angelo.hydrate-reminder-dev";
@@ -114,13 +111,20 @@ fn submit_drink(app: &AppHandle, amount: f64) {
 
 #[instrument]
 fn play_drink_sound() {
-    tauri::async_runtime::spawn(async move {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
+    if rodio::cpal::default_host()
+        .output_devices()
+        .unwrap()
+        .count()
+        > 1
+    {
+        tauri::async_runtime::spawn(async move {
+            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+            let sink = Sink::try_new(&stream_handle).unwrap();
 
-        sink.append(drink_audio());
-        sink.sleep_until_end();
-    });
+            sink.append(drink_audio());
+            sink.sleep_until_end();
+        });
+    }
 }
 
 fn handle_tray_event(app: &AppHandle, event: SystemTrayEvent) {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::DateTime;
-use rodio::{OutputStream, Sink};
+use rodio::{cpal::traits::HostTrait, OutputStream, Sink};
 use tauri::{AppHandle, Manager};
 use tracing::{error, instrument, trace, warn};
 
@@ -10,41 +10,47 @@ use crate::{sound::notification_audio, storage::AppState, structs::drink_point::
 #[instrument(skip(app))]
 #[tauri::command]
 pub fn create_drink_notification(app: AppHandle) {
-    tauri::async_runtime::spawn(async move {
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
+    if rodio::cpal::default_host()
+        .output_devices()
+        .unwrap()
+        .count()
+        > 1
+    {
+        tauri::async_runtime::spawn(async move {
+            let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+            let sink = Sink::try_new(&stream_handle).unwrap();
 
-        sink.append(notification_audio());
+            sink.append(notification_audio());
+            sink.sleep_until_end();
+        });
+    }
 
-        #[cfg(target_os = "macos")]
+    #[cfg(target_os = "macos")]
+    {
+        if let Err(e) = mac_notification_sys::Notification::new()
+            .app_icon("")
+            .title("Time to drink!")
+            .message("It's been 1 hour since your last drink, time to drink again!")
+            .send()
         {
-            if let Err(e) = mac_notification_sys::Notification::new()
-                .app_icon("")
-                .title("Time to drink!")
-                .message("It's been 1 hour since your last drink, time to drink again!")
-                .send()
-            {
-                error!("Failed to send drink notification: {e}");
-            }
+            error!("Failed to send drink notification: {e}");
         }
+    }
 
-        #[cfg(target_os = "windows")]
+    #[cfg(target_os = "windows")]
+    {
+        if let Err(e) = winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
+            .title("Time to drink!")
+            .text1("It's been 1 hour since your last drink, time to drink again!")
+            .duration(winrt_notification::Duration::Short)
+            .sound(None)
+            .show()
         {
-            if let Err(e) = winrt_notification::Toast::new(&app.config().tauri.bundle.identifier)
-                .title("Time to drink!")
-                .text1("It's been 1 hour since your last drink, time to drink again!")
-                .duration(winrt_notification::Duration::Short)
-                .sound(None)
-                .show()
-            {
-                error!("Failed to send drink notification: {e}");
-            }
+            error!("Failed to send drink notification: {e}");
         }
+    }
 
-        // TODO: Add Linux support
-
-        sink.sleep_until_end();
-    });
+    // TODO: Add Linux support
 }
 
 #[instrument(skip(app))]
