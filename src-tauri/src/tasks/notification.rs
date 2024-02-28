@@ -1,4 +1,4 @@
-use chrono::{Duration, Local, Timelike};
+use chrono::{Days, Duration, Local};
 use tauri::{AppHandle, Manager};
 use tokio::select;
 use tracing::{instrument, trace, warn};
@@ -54,15 +54,26 @@ async fn wait_next_notif(app: AppHandle) {
     let next_drink_time = last_drink_time + chrono::Duration::hours(1);
     let time_difference = next_drink_time - chrono::Utc::now();
 
+    trace!("Seconds until next drink: {time_difference} seconds");
+
     if time_difference.num_seconds() < 0 {
         // If the time difference is negative, we've already passed the next drink time
         // so we'll just wait indefinitely
         //
         // TODO: Handle this edge case in the future, maybe set an hourly / daily reminder
 
-        let mut start_day_tomorrow = chrono::Local::now() + Duration::days(1);
-        start_day_tomorrow = start_day_tomorrow.with_hour(10).unwrap();
+        let start_day_tomorrow = chrono::Local::now()
+            .naive_local()
+            .checked_add_days(Days::new(1))
+            .unwrap()
+            .date()
+            .and_hms_opt(10, 0, 0)
+            .unwrap()
+            .and_local_timezone(chrono::Local)
+            .unwrap();
+        trace!("10AM Tomorrow: {start_day_tomorrow}");
         let time_until_start_day_tomorrow = start_day_tomorrow - Local::now();
+        trace!("Seconds until 10AM tomorrow: {time_until_start_day_tomorrow}");
 
         tokio::time::sleep(time_until_start_day_tomorrow.to_std().unwrap()).await;
     } else {
