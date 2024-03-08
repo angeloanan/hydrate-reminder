@@ -10,12 +10,13 @@ use crate::{sound::notification_audio, storage::AppState, structs::drink_point::
 #[instrument(skip(app))]
 #[tauri::command]
 pub fn create_drink_notification(app: AppHandle) {
-    if rodio::cpal::default_host()
+    let device_count = rodio::cpal::default_host()
         .output_devices()
         .unwrap()
-        .count()
-        > 1
-    {
+        .count();
+    trace!("Output device count: {device_count}");
+
+    if device_count > 0 {
         tauri::async_runtime::spawn(async move {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();

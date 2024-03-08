@@ -111,12 +111,13 @@ fn submit_drink(app: &AppHandle, amount: f64) {
 
 #[instrument]
 fn play_drink_sound() {
-    if rodio::cpal::default_host()
+    let device_count = rodio::cpal::default_host()
         .output_devices()
         .unwrap()
-        .count()
-        > 1
-    {
+        .count();
+    trace!("Output device count: {device_count}");
+
+    if device_count > 0 {
         tauri::async_runtime::spawn(async move {
             let (_stream, stream_handle) = OutputStream::try_default().unwrap();
             let sink = Sink::try_new(&stream_handle).unwrap();
