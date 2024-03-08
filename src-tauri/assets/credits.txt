@@ -1,2 +1,7 @@
 notif.mp3 - https://freesound.org/people/CaKon/sounds/689296/
 gulp.mp3 - https://freesound.org/people/SilverIllusionist/sounds/411172/
+
+All of the files above were downloaded AND re-encoded using `ffmpeg` due to malformed bitstreams with the following command:
+```sh
+ffmpeg -i <filename>.mp3 <reencodedFilename>.mp3
+```
