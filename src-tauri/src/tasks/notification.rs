@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use chrono::{Days, Duration, Local};
 use tauri::{AppHandle, Manager};
 use tokio::select;
-use tracing::{instrument, trace, warn};
+use tracing::{instrument, trace};
 
 use crate::{
     commands::create_drink_notification, storage::AppState, structs::drink_point::DrinkPoint,
@@ -10,18 +12,15 @@ use crate::{
 #[instrument(skip(app))]
 pub async fn task_manager(app: AppHandle) {
     // A channel to short-circuit the notification task
-    let (sender, mut receiver) = tokio::sync::mpsc::channel::<()>(1);
+    let notify = Arc::new(tokio::sync::Notify::new());
 
+    let notifier = notify.clone();
     app.listen_global("drink", move |_e| {
         trace!("Received drink event. Sending reschedule signal");
-        tauri::async_runtime::block_on(async {
-            match sender.try_send(()) {
-                Ok(_) => trace!("Rescheduled drink notification"),
-                Err(e) => warn!("Failed to reschedule drink notification: {e}"),
-            }
-        });
+        notifier.notify_one();
     });
 
+    let notified = notify.clone();
     loop {
         trace!("Re-scheduling notification task");
         // Debounce 1s
@@ -32,7 +31,7 @@ pub async fn task_manager(app: AppHandle) {
                 create_drink_notification(app.clone());
                 trace!("Notification task completed, rescheduling");
             },
-            _ = receiver.recv() => {
+            _ = notified.notified() => {
                 trace!("Received drink event, rescheduling notification task");
             },
         };
